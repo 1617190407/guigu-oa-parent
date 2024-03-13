@@ -15,6 +15,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import result.Result;
+import utils.MD5;
 
 /**
  * <p>
@@ -73,6 +74,11 @@ public class SysUserController {
     @ApiOperation(value = "保存用户")
     @PostMapping("save")
     public Result save(@RequestBody SysUser user) {
+        //密码进行加密，使用MD5
+        String password = user.getPassword();
+        String passwordMD5 = MD5.encrypt(password);
+        user.setPassword(passwordMD5);
+
         service.save(user);
         return Result.ok();
     }

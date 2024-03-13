@@ -10,12 +10,16 @@ import com.atguigu.model.system.SysMenu;
 import com.atguigu.model.system.SysRoleMenu;
 
 import com.atguigu.vo.system.AssignMenuVo;
+import com.atguigu.vo.system.MetaVo;
+import com.atguigu.vo.system.RouterVo;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -75,6 +79,8 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
         });
         //返回规定格式菜单列表
         List<SysMenu> sysMenuList = MenuHelper.buildTree(allSysMenuList);
+
+
         return sysMenuList;
     }
 
@@ -95,5 +101,84 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
             sysRoleMenu.setRoleId(assignMenuVo.getRoleId());
             sysRoleMenuService.save(sysRoleMenu);
         }
+    }
+
+    @Override
+    public List<RouterVo> findUserMenuListByUserId( Long userId ) {
+        List<SysMenu> sysMenuList = null;
+        if (userId.longValue()==1){
+            LambdaQueryWrapper<SysMenu> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(SysMenu::getStatus,1);
+            wrapper.orderByAsc(SysMenu::getSortValue);
+            sysMenuList = baseMapper.selectList(wrapper);
+        }else{
+            sysMenuList = baseMapper.findMenuListByUserId(userId);
+        }
+        List<SysMenu> sysMenuTreeList = MenuHelper.buildTree(sysMenuList);
+        List<RouterVo> routerList =this.buildRouter(sysMenuTreeList);
+        return routerList;
+    }
+
+    private List<RouterVo> buildRouter( List<SysMenu> menus ) {
+        List<RouterVo> routers = new ArrayList<>();
+        for(SysMenu menu :menus){
+            RouterVo router = new RouterVo();
+            router.setHidden(false);
+            router.setAlwaysShow(false);
+            router.setPath(getRouterPath(menu));
+            router.setComponent(menu.getComponent());
+            router.setMeta(new MetaVo(menu.getName(), menu.getIcon()));
+            List<SysMenu> children = menu.getChildren();
+            if(menu.getType().intValue() == 1){
+                List<SysMenu> hiddenMenuList = children.stream().filter(item -> !StringUtils.isEmpty(item.getComponent())).collect(Collectors.toList());
+                for (SysMenu hiddenMenu : hiddenMenuList) {
+                    RouterVo hiddenRouter = new RouterVo();
+                    hiddenRouter.setHidden(true);
+                    hiddenRouter.setAlwaysShow(false);
+                    hiddenRouter.setPath(getRouterPath(hiddenMenu));
+                    hiddenRouter.setComponent(hiddenMenu.getComponent());
+                    hiddenRouter.setMeta(new MetaVo(hiddenMenu.getName(), hiddenMenu.getIcon()));
+                    routers.add(hiddenRouter);
+                }
+            }else{
+                if(!CollectionUtils.isEmpty(children)){
+                    if(children.size() > 0) {
+                        router.setAlwaysShow(true);
+                    }
+                    router.setChildren(buildRouter(children));
+                }
+            }
+            routers.add(router);
+        }
+        return routers;
+    }
+
+    /**
+     * 获取路由地址
+     *
+     * @param menu 菜单信息
+     * @return 路由地址
+     */
+    public String getRouterPath(SysMenu menu) {
+        String routerPath = "/" + menu.getPath();
+        if(menu.getParentId().intValue() != 0) {
+            routerPath = menu.getPath();
+        }
+        return routerPath;
+    }
+
+    @Override
+    public List<String> findUserPermsByUserId( Long userId ) {
+        List<SysMenu> sysMenuList = null;
+        if(userId.longValue()==1){
+            LambdaQueryWrapper<SysMenu> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(SysMenu::getStatus,1);
+            sysMenuList = baseMapper.selectList(wrapper);
+        }else{
+            sysMenuList = baseMapper.findMenuListByUserId(userId);
+        }
+        List<String> permsList = sysMenuList.stream().filter(item -> item.getType()==2).map(item -> item.getPerms()).collect(Collectors.toList());
+
+        return permsList;
     }
 }
