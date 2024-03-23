@@ -1,6 +1,7 @@
 package com.atguigu.security.filter;
 
 import com.alibaba.fastjson.JSON;
+import com.atguigu.security.custom.LoginUserInfoHelper;
 import jwt.JwtHelper;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -50,6 +51,10 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
         if(!StringUtils.isEmpty(token)){
             String username = JwtHelper.getUsername(token);
             if(!StringUtils.isEmpty(username)){
+                //当前用户信息放到ThreaLocal里面
+                LoginUserInfoHelper.setUserId(JwtHelper.getUserId(token));
+                LoginUserInfoHelper.setUsername(username);
+
                 //通过username从redis获取权限数据
                 String authString  = (String) redisTemplate.opsForValue().get(username);
                 //把redis获取字符串权限数据转换要求集合类型List<SimpleGrantedAuthority>

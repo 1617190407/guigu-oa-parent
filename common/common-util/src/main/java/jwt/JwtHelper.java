@@ -51,7 +51,7 @@ public class JwtHelper {
     }
 
     public static void main( String[] args ) {
-        String token = JwtHelper.createToken(1L, "LUCY");
+        String token = JwtHelper.createToken(4L, "li4");
         System.out.println(token);
         Long userId = JwtHelper.getUserId(token);
         String username = JwtHelper.getUsername(token);
